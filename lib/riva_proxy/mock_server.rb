@@ -1,4 +1,6 @@
 require 'grpc'
+require_relative 'proto/riva_asr_pb'
+require_relative 'proto/riva_asr_services_pb'
 
 module RivaProxy
   class MockServer < Nvidia::Riva::Asr::RivaSpeechRecognition::Service

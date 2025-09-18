@@ -97,7 +97,7 @@ module RivaProxy
       Enumerator.new do |yielder|
         # First request with config
         streaming_config = build_streaming_config(config)
-        puts streaming_config.inspect
+        # puts streaming_config.inspect
         yielder << Nvidia::Riva::Asr::StreamingRecognizeRequest.new(
           streaming_config: streaming_config
         )

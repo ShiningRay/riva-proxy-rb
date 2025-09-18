@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require_relative '../lib/riva_proxy'
+require_relative '../lib/riva_proxy/mock_server'
 
 port = ARGV[0] || 50051
 puts "Starting Riva ASR Mock Server on port #{port}"
