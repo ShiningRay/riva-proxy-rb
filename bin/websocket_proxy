@@ -1,0 +1,94 @@
+#!/usr/bin/env ruby
+
+require 'dotenv/load'
+require 'optparse'
+require_relative '../lib/riva_proxy'
+
+# Default options
+options = {
+  host: ENV['WEBSOCKET_HOST'] || '0.0.0.0',
+  port: (ENV['WEBSOCKET_PORT'] || 8080).to_i,
+  riva_host: ENV['RIVA_HOST'] || 'localhost',
+  riva_port: (ENV['RIVA_PORT'] || 50051).to_i,
+  riva_timeout: (ENV['RIVA_TIMEOUT'] || 30).to_i,
+  log_level: ENV['LOG_LEVEL'] || 'INFO',
+  ssl_cert: ENV['WEBSOCKET_SSL_CERT'],
+  ssl_key: ENV['WEBSOCKET_SSL_KEY'],
+  ssl_verify_mode: ENV['WEBSOCKET_SSL_VERIFY_MODE'] || 'none'
+}
+
+# Parse command line options
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} [options]"
+  
+  opts.on('-h', '--host HOST', 'WebSocket server host (default: 0.0.0.0)') do |host|
+    options[:host] = host
+  end
+  
+  opts.on('-p', '--port PORT', Integer, 'WebSocket server port (default: 8080)') do |port|
+    options[:port] = port
+  end
+  
+  opts.on('--riva-host HOST', 'Riva gRPC server host (default: localhost)') do |host|
+    options[:riva_host] = host
+  end
+  
+  opts.on('--riva-port PORT', Integer, 'Riva gRPC server port (default: 50051)') do |port|
+    options[:riva_port] = port
+  end
+  
+  opts.on('--riva-timeout TIMEOUT', Integer, 'Riva gRPC timeout in seconds (default: 30)') do |timeout|
+    options[:riva_timeout] = timeout
+  end
+  
+  opts.on('--log-level LEVEL', 'Log level (DEBUG, INFO, WARN, ERROR) (default: INFO)') do |level|
+    options[:log_level] = level.upcase
+  end
+
+  # SSL options
+  opts.on('--ssl-cert PATH', 'Path to SSL certificate (PEM) to enable WSS') do |path|
+    options[:ssl_cert] = path
+  end
+  opts.on('--ssl-key PATH', 'Path to SSL private key (PEM) to enable WSS') do |path|
+    options[:ssl_key] = path
+  end
+  opts.on('--ssl-verify-mode MODE', 'SSL verify_mode (none, peer, force_peer) (default: none)') do |mode|
+    options[:ssl_verify_mode] = mode
+  end
+  
+  opts.on('--help', 'Show this help message') do
+    puts opts
+    exit
+  end
+end.parse!
+
+# Setup logger
+logger = Logger.new(STDOUT)
+logger.level = Logger.const_get(options[:log_level])
+logger.formatter = proc do |severity, datetime, progname, msg|
+  "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
+end
+
+# Create and start the proxy server
+proxy = RivaProxy::WebSocketProxy.new(
+  host: options[:host],
+  port: options[:port],
+  riva_host: options[:riva_host],
+  riva_port: options[:riva_port],
+  riva_timeout: options[:riva_timeout],
+  logger: logger,
+  ssl_cert: options[:ssl_cert],
+  ssl_key: options[:ssl_key],
+  ssl_verify_mode: options[:ssl_verify_mode]
+)
+
+begin
+  proxy.start
+rescue Interrupt
+  logger.info "Received interrupt signal, shutting down..."
+  proxy.stop
+rescue => e
+  logger.error "Server error: #{e.message}"
+  logger.error e.backtrace.join("\n")
+  exit 1
+end

@@ -1,0 +1,76 @@
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Editors/IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+tags
+.tags
+
+# Ruby / Bundler
+.bundle/
+vendor/bundle/
+vendor/cache/
+pkg/
+
+# Logs and temporary files
+log/
+log/*
+!log/.keep
+/tmp/
+tmp/
+tmp/*
+!tmp/.keep
+
+# Test coverage and reports
+coverage/
+spec/reports/
+
+# Documentation artifacts
+.yardoc/
+yardoc/
+doc/
+
+# RuboCop cache
+.rubocop-https*
+.rubocop-http*
+.rubocop_cache/
+.rubocop-cache
+
+# Debugger histories
+.byebug_history
+.pry_history
+.rdbg_history
+
+# Dotenv (keep example file tracked)
+.env
+.env.*
+!.env.example
+
+# Certificates (development/local only)
+certs/*
+!certs/.keep
+
+# Node (if present)
+node_modules/
+
+# Rails (harmless if not used in this project)
+storage/
+public/assets/
+public/packs/
+public/packs-test/
+.sprockets-manifest*
+config/master.key
+config/credentials.yml.enc
+
+# Misc
+*.bak
+*.tmp
+nohup.out
+
+.env
+!.env.example

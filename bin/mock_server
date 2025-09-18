@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+
+require_relative '../lib/riva_proxy'
+
+port = ARGV[0] || 50051
+puts "Starting Riva ASR Mock Server on port #{port}"
+
+server = RivaProxy::MockServer.new(port: port.to_i)
+
+# Handle graceful shutdown
+trap('INT') do
+  puts "\nShutting down server..."
+  server.stop
+  exit
+end
+
+server.start
