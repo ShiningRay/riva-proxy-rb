@@ -2,7 +2,7 @@ require 'rspec/core/rake_task'
 require 'rubocop/rake_task'
 
 # Default task
-task default: [:spec, :rubocop]
+task default: %i[spec rubocop]
 
 # RSpec tasks
 RSpec::Core::RakeTask.new(:spec) do |t|
@@ -30,7 +30,7 @@ end
 
 desc 'Start mock server'
 task :server do
-  port = ENV['PORT'] || 50051
+  port = ENV['PORT'] || 50_051
   puts "Starting mock server on port #{port}"
   sh "ruby bin/mock_server #{port}"
 end
