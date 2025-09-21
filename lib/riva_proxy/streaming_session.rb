@@ -94,6 +94,7 @@ module RivaProxy
           @stream.each do |response|
             break if @closed
 
+            puts response.inspect
             @response_handler&.call(response)
           end
           # Stream finished without error

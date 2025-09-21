@@ -4,7 +4,7 @@ require 'json'
 require 'base64'
 require 'logger'
 require 'securerandom'
-# require 'rack'
+require 'rack'
 # require 'thin'
 # require 'rack/handler' # not available in Rack 3
 # require 'rackup/handler/thin'
@@ -38,7 +38,12 @@ module RivaProxy
 
       # Create a simple Rack app for WebSocket handling
       app = lambda do |env|
-        if Faye::WebSocket.websocket?(env)
+        request = Rack::Request.new(env)
+        
+        # Handle POST /recognize for file upload recognition
+        if request.post? && request.path == '/recognize'
+          handle_file_recognition(request)
+        elsif Faye::WebSocket.websocket?(env)
           ws = Faye::WebSocket.new(env)
           connection_id = SecureRandom.uuid
 
@@ -170,6 +175,84 @@ module RivaProxy
       @logger.level = Logger::INFO
       @logger.formatter = proc do |severity, datetime, progname, msg|
         "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
+      end
+    end
+
+    def handle_file_recognition(request)
+      begin
+        # Parse multipart form data to get uploaded file
+        file_param = request.params['audio'] || request.params['file']
+        
+        unless file_param && file_param.is_a?(Hash) && file_param[:tempfile]
+          return [400, { 'Content-Type' => 'application/json' }, 
+                  [JSON.generate({ error: 'Missing audio file. Please upload via form field "audio" or "file".' })]]
+        end
+
+        # Read audio data from uploaded file
+        audio_data = file_param[:tempfile].read
+        file_param[:tempfile].rewind # Reset for potential reuse
+
+        # Parse recognition config from request parameters
+        config = {
+          language_code: request.params['language_code'] || 'en-US',
+          sample_rate_hertz: (request.params['sample_rate_hertz'] || 16000).to_i,
+          encoding: (request.params['encoding'] || 'LINEAR_PCM').to_sym,
+          max_alternatives: (request.params['max_alternatives'] || 1).to_i,
+          enable_automatic_punctuation: request.params['enable_automatic_punctuation'] == 'true',
+          enable_word_time_offsets: request.params['enable_word_time_offsets'] == 'true',
+          model: request.params['model'] || ''
+        }
+
+        @logger.info "File recognition request: #{file_param[:filename]} (#{audio_data.bytesize} bytes), config: #{config}"
+
+        # Create gRPC client for recognition
+        grpc_client = RivaProxy::Client.new(
+          host: @riva_host,
+          port: @riva_port,
+          timeout: @riva_timeout
+        )
+
+        # Call non-streaming recognize
+        response = grpc_client.recognize(audio_data, config)
+
+        # Convert gRPC response to JSON
+        result = {
+          results: response.results.map do |result|
+            {
+              alternatives: result.alternatives.map do |alt|
+                {
+                  transcript: alt.transcript,
+                  confidence: alt.confidence,
+                  words: alt.words.map do |word|
+                    {
+                      word: word.word,
+                      start_time: extract_time_in_seconds(word.start_time),
+                      end_time: extract_time_in_seconds(word.end_time),
+                      confidence: word.confidence,
+                      speaker_tag: word.speaker_tag
+                    }
+                  end
+                }
+              end
+            }
+          end
+        }
+
+        [200, { 'Content-Type' => 'application/json' }, [JSON.generate(result)]]
+
+      rescue RivaProxy::RecognitionError => e
+        @logger.error "Recognition error: #{e.message}"
+        [422, { 'Content-Type' => 'application/json' }, 
+         [JSON.generate({ error: "Recognition failed: #{e.message}" })]]
+      rescue RivaProxy::ConnectionError => e
+        @logger.error "Connection error: #{e.message}"
+        [503, { 'Content-Type' => 'application/json' }, 
+         [JSON.generate({ error: "Service unavailable: #{e.message}" })]]
+      rescue => e
+        @logger.error "Unexpected error in file recognition: #{e.message}"
+        @logger.error e.backtrace.join("\n")
+        [500, { 'Content-Type' => 'application/json' }, 
+         [JSON.generate({ error: "Internal server error" })]]
       end
     end
 
