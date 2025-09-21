@@ -11,6 +11,7 @@ gem 'grpc-tools', '~> 1.60'
 # gem 'thin'
 gem 'puma', '~> 6.4'
 gem 'rack', '~> 3.0'
+gem 'websocket-client-simple', '~> 0.8'
 
 group :development, :test do
   gem 'pry', '~> 0.14'
