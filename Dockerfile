@@ -1,6 +1,6 @@
 # Multi-stage build for riva-proxy-rb
 # Builder image compiles native gems (grpc, etc.)
-ARG RUBY_VERSION=3.4
+ARG RUBY_VERSION=3.4.5
 FROM ruby:${RUBY_VERSION}-slim AS builder
 
 # Install build tools and headers needed for native gems
