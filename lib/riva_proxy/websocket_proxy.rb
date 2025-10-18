@@ -221,13 +221,13 @@ module RivaProxy
             alternatives: result.alternatives.map do |alt|
               {
                 transcript: alt.transcript,
-                confidence: alt.confidence,
+                confidence: sanitize_confidence(alt.confidence),
                 words: alt.words.map do |word|
                   {
                     word: word.word,
                     start_time: extract_time_in_seconds(word.start_time),
                     end_time: extract_time_in_seconds(word.end_time),
-                    confidence: word.confidence,
+                    confidence: sanitize_confidence(word.confidence),
                     speaker_tag: word.speaker_tag
                   }
                 end
@@ -371,13 +371,13 @@ module RivaProxy
             alternatives: result.alternatives.map do |alt|
               {
                 transcript: alt.transcript,
-                confidence: alt.confidence,
+                confidence: sanitize_confidence(alt.confidence),
                 words: alt.words.map do |word|
                   {
                     word: word.word,
                     start_time: extract_time_in_seconds(word.start_time),
                     end_time: extract_time_in_seconds(word.end_time),
-                    confidence: word.confidence,
+                    confidence: sanitize_confidence(word.confidence),
                     speaker_tag: word.speaker_tag
                   }
                 end
@@ -506,3 +506,8 @@ def extract_time_in_seconds(ts)
     0.0
   end
 end
+
+    def sanitize_confidence(val)
+      return 0 if val.is_a?(Float) && (val.nan? || val.infinite?)
+      val
+    end
