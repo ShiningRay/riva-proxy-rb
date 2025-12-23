@@ -236,7 +236,7 @@ module RivaProxy
           }
         end
       }
-
+      grpc_client.close
       [200, { 'Content-Type' => 'application/json' }, [JSON.generate(result)]]
     rescue RivaProxy::RecognitionError => e
       @logger.error "Recognition error: #{e.message}"
