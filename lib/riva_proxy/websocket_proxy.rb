@@ -29,6 +29,13 @@ module RivaProxy
       @ssl_key = options[:ssl_key] || ENV.fetch('WEBSOCKET_SSL_KEY', nil)
       @ssl_verify_mode = options[:ssl_verify_mode] || ENV['WEBSOCKET_SSL_VERIFY_MODE'] || 'none'
 
+      # Shared gRPC client for stateless file recognition
+      @file_recognition_client = RivaProxy::Client.new(
+        host: @riva_host,
+        port: @riva_port,
+        timeout: @riva_timeout
+      )
+
       setup_logger
     end
 
@@ -187,6 +194,12 @@ module RivaProxy
                 [JSON.generate({ error: 'Missing audio file. Please upload via form field "audio" or "file".' })]]
       end
 
+      # Check file size (limit to 4MB default gRPC max message size)
+      if file_param[:tempfile].size > 4 * 1024 * 1024
+        return [413, { 'Content-Type' => 'application/json' },
+                [JSON.generate({ error: 'File too large. Maximum size is 4MB. Use WebSocket streaming for longer audio.' })]]
+      end
+
       # Read audio data from uploaded file
       audio_data = file_param[:tempfile].read
       file_param[:tempfile].rewind # Reset for potential reuse
@@ -204,15 +217,8 @@ module RivaProxy
 
       @logger.info "File recognition request: #{file_param[:filename]} (#{audio_data.bytesize} bytes), config: #{config}"
 
-      # Create gRPC client for recognition
-      grpc_client = RivaProxy::Client.new(
-        host: @riva_host,
-        port: @riva_port,
-        timeout: @riva_timeout
-      )
-
-      # Call non-streaming recognize
-      response = grpc_client.recognize(audio_data, config)
+      # Use shared gRPC client for recognition
+      response = @file_recognition_client.recognize(audio_data, config)
 
       # Convert gRPC response to JSON
       result = {
@@ -236,7 +242,7 @@ module RivaProxy
           }
         end
       }
-      grpc_client.close
+
       [200, { 'Content-Type' => 'application/json' }, [JSON.generate(result)]]
     rescue RivaProxy::RecognitionError => e
       @logger.error "Recognition error: #{e.message}"
